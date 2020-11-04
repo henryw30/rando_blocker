@@ -1,40 +1,63 @@
-/// twitch-videoad.js
-// const origFetch = window.fetch;
-// window.fetch = (url, init, ...args) => {
-// 	if (typeof url === "string") {
-// 		if (url.includes("/access_token")) {
-// 			const newUrl = new URL(arguments[0]);
-// 			newUrl.searchParams.set("player_type", "dashboard");
-// 			url = url.href;
-// 		} else if (
-// 			url.includes("/gql") &&
-// 			init &&
-// 			typeof init.body === "string" &&
-// 			init.body.includes("PlaybackAccessToken")
-// 		) {
-// 			const newBody = JSON.parse(init.body);
-// 			newBody.variables.playerType = "dashboard";
-// 			init.body = JSON.stringify(newBody);
-// 		}
-// 	}
-// 	return origFetch(url, init, ...args);
-// };
+(function() {
+    'use strict';
 
-const origFetch = window.fetch;
-window.fetch = (url, init, ...args) => {
-	if (typeof url === "string") {
-		if (url.includes("/access_token")) {
-			url = url.replace("player_type=site", "player_type=thunderdome");
-		} else if (
-			url.includes("/gql") &&
-			init &&
-			typeof init.body === "string" &&
-			init.body.includes("PlaybackAccessToken")
-		) {
-			const newBody = JSON.parse(init.body);
-			newBody.variables.playerType = "thunderdome";
-			init.body = JSON.stringify(newBody);
-		}
-	}
-	return origFetch(url, init, ...args);
-};
+
+    const findVideoPlayer = function() {
+        const videoPlayer = document.querySelector('[data-a-target="video-player"]');
+
+        if (videoPlayer) {
+            attachMutationObserver(videoPlayer);
+        }
+    }
+
+    const attachMutationObserver = function(videoPlayer) {
+
+        const dblclick = new MouseEvent('dblclick', {
+            bubbles: true,
+            cancelable: true,
+            view: window
+        });
+
+        let options = {
+            childList: true,
+            subtree: true
+        };
+
+        const adObserver = new MutationObserver(function(mutations) {
+            mutations.forEach((mutation) => {
+                mutation.addedNodes.forEach((node) => {
+                    if (node.nodeType === Node.ELEMENT_NODE) {
+                        let ad = node.querySelector('[data-test-selector="ad-banner-default-text"]');
+                        if (ad) {
+                            let resetButton = document.querySelector('[data-a-target="ffz-player-reset-button"]');
+                            let videoPlayerElement = document.querySelector('video');
+                            let currentVolume = videoPlayerElement.volume;
+                            if (resetButton) {
+                                resetButton.dispatchEvent(dblclick);
+                                setTimeout(() => {
+                                    videoPlayerElement.volume = currentVolume;
+                                }, 2000);
+                            } else {
+                                window.location.reload();
+                            }
+                        }
+                    }
+                });
+            });
+        });
+
+        adObserver.observe(videoPlayer, options);
+    }
+
+    window.onload = function() {
+
+        findVideoPlayer();
+
+        var pushState = history.pushState;
+        history.pushState = function () {
+            pushState.apply(history, arguments);
+            findVideoPlayer();
+        };
+    }
+
+})();
